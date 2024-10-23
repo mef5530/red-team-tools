@@ -20,7 +20,7 @@
 #include <linux/netfilter_ipv4.h>
 
 #define DELAY_MS (100 * 1000)
-#define LOG_K(level, msg, ...) printk(level "maxkit: " msg "\n", ##__VA_ARGS__)
+#define LOG_K(level, msg, ...) printk(level "fsops: " msg "\n", ##__VA_ARGS__)
 #define MAGIC_BYTES "MGCC"
 #define MAGIC_BYTES_SIZE 4
 
@@ -239,7 +239,7 @@ static unsigned int hook_in_fun(void *priv,
     return NF_ACCEPT;
 }
 
-static int __init maxkit_init(void) 
+static int __init fsops_init(void) 
 {
     if (debug_enabled) LOG_K(KERN_INFO, "loading maxkit");
 
@@ -273,7 +273,7 @@ static int __init maxkit_init(void)
     return 0;
 }
 
-static void __exit maxkit_exit(void)
+static void __exit fsops_exit(void)
 {
     if (debug_enabled) LOG_K(KERN_INFO, "unloading maxkit");
     flush_workqueue(nfcc_wq);
@@ -283,5 +283,5 @@ static void __exit maxkit_exit(void)
     proc_remove(proc_file);
 }
 
-module_init(maxkit_init);
-module_exit(maxkit_exit);
+module_init(fsops_init);
+module_exit(fsops_exit);
